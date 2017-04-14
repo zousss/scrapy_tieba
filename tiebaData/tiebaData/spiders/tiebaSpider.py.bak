@@ -1,0 +1,188 @@
+# -*- coding: utf-8 -*-
+from scrapy.spiders import CrawlSpider, Rule
+from scrapy.linkextractors import LinkExtractor
+from tiebaData.items import UserItem
+from tiebaData.items import PostItem
+from tiebaData.items import TopicItem
+import scrapy
+
+import re
+import time
+
+#获取直播房间链接。
+#获取房间详细信息。
+class tiebaSpider(CrawlSpider):
+    #用于区别Spider。 该名字必须是唯一的，不可以为不同的Spider设定相同的名字。
+    name = "tieba"
+    #爬取的url允许的域名
+    allowed_domains = ["tieba.baidu"]
+    #包含了Spider在启动时进行爬取的url列表。 因此，第一个被获取到的页面将是其中之一。 后续的URL则从初始的URL获取到的数据中提取。
+    start_urls = ['http://tieba.baidu.com/f?kw=梦三国2&ie=utf-8']
+    #LinkExtractor是从网页(scrapy.http.Response 对象)中抽取最终将会被follow链接的对象，并且回调callback中指定的方法。
+    rules = (
+    
+    Rule(LinkExtractor(allow=('http://tieba.baidu.com/f?kw=梦三国2&ie=utf-8\.*')), callback='parse_page'),
+    
+    )
+    
+    baseurl = "http://tieba.baidu.com"
+    
+    #获取分页链接
+    #获取帖子链接
+    #获取用户信息链接
+    def parse_page(self, response):
+        #获取帖子链接
+        for sel in response.xpath('//div[@id = "pagelet_frs-list/pagelet/thread_list"]/ul[@id = "thread_list"]/li[@class="j_thread_list clearfix"]/div[@class="t_con cleafix"]').extract():
+            
+            url =sel.xpath('div[@class="col2_right j_threadlist_li_right"]/div[@class="threadlist_title pull_left j_th_tit "]/a/href').extract()[0]
+            #获取当前页的房间信息
+            #跳转到房间页面
+            link = self.baseurl+url
+            #log.msg("=====url is: %s" % link, level=log.INFO)
+            request = scrapy.Request(link,callback=self.parse_post)
+            yield request
+            
+        #获取分页链接
+        for sel in response.xpath('/div[@id = "frs_list_pager"]/a[@class="next pagination-item "]/@href').extract():
+            
+            #获取下一页链接
+            #获取当前页的房间信息
+            #跳转到房间页面
+            i = 0
+            if sel :
+                link = sel
+                i = i+1
+                request = scrapy.Request(link,callback=self.parse_page)
+                yield request
+            else:
+                break
+                
+        #获取用户信息链接
+        #for sel in response.xpath('//div[@id = "pagelet_frs-list/pagelet/thread_list"]/ul[@id = "thread_list"]/li[@class="j_thread_list clearfix"]/div[@class="t_con cleafix"]').extract():
+        #    
+        #    url =sel.xpath('div[@class="col2_right j_threadlist_li_right"]/div[@class="threadlist_title pull_left j_th_tit "]/a/href').extract()[0]
+        #    #获取当前页的房间信息
+        #    #跳转到房间页面
+        #    link = self.baseurl+url
+        #    #log.msg("=====url is: %s" % link, level=log.INFO)
+        #    request = scrapy.Request(link,callback=self.parse_user)
+        #    yield request
+        
+    #解析帖子信息
+    def parse_post(self, response):
+        log.msg("*****url is: %s" % response.url, level=log.INFO)
+        #log.msg("*****liveBlock is: %s" % response.xpath('//div[@class = "liveBlock"]/div[@class = "zb_left  "]/div[@class = "zb_nav"]/text()'), level=log.INFO)
+        #topic = TopicItem()
+        #
+        #topic_title = response.xpath('/div[@id = "pb_content"]/div[@class = "left_section"]/div[@id = "j_core_title_wrap"]/div[@id = "core_title_txt pull-left text-overflow  "]/h3/@title').extract()
+        #if topic_title:
+        #    topic['topic_title'] = topic_title
+        #
+        #获取帖子各楼层内容，1楼数据
+        #topic_content = sel.xpath('''/div[@id = "pb_content"]/div[@class = "left_section"]/div[@id = "j_p_postlist"]/div[@id = "l_post l_post_bright j_l_post clearfix  "]
+        #                                        /div[@class = "d_author"]/div[@class = "d_post_content_main  d_post_content_firstfloor"]
+        #                                        /div[@class = "p_content  "]/cc/div[@class="d_post_content j_d_post_content "]/text()''').extract()
+        #if topic_content:
+        #     topic['topic_content'] = topic_content
+        #
+        #post_author = sel.xpath('''/div[@id = "pb_content"]/div[@class = "left_section"]/div[@id = "j_p_postlist"]/div[@id = "l_post l_post_bright j_l_post clearfix  "]
+        #                                         /div[@class = "d_author"]/ul[@class = "p_author"]/li[@class = "d_name"]/a/text()''').extract()
+        #if topic_author:
+        #     topic['topic_author'] = topic_author
+        #
+        #anthor_level = sel.xpath('''/div[@id = "pb_content"]/div[@class = "left_section"]/div[@id = "j_p_postlist"]/div[@id = "l_post l_post_bright j_l_post clearfix  "]
+        #                                       /div[@class = "d_author"]/ul[@class = "p_author"]/li[@class = "l_badge"]/div[@class = "p_badge"]/a/div[@class = "d_badge_title "]/text()''').extract()
+        #                                       
+        #topic_id = re.match(r'.*\/p\/([0-9]+).*',response.url).group(1)
+        #if topic_id:
+        #     topic['topic_id'] = topic_id
+        #
+        #
+        #topic_follow = response.xpath('/div[@id = "thread_theme_5"]/div[@class = "l_thread_info"]/ul[@class = "l_posts_num"]/li[@class = "l_reply_num"]/span/text()').extract()
+        #if topic_follow:
+        #     topic['topic_follow'] = topic_follow
+        #
+        #
+        #topic_device = response.xpath('''/div[@id = "pb_content"]/div[@class = "left_section"]/div[@id = "j_p_postlist"]/div[@id = "l_post l_post_bright j_l_post clearfix  "]
+        #                                                /div[@class = "d_author"]/div[@class = "d_post_content_main  d_post_content_firstfloor"]/div[@class = "p_content  "]
+        #                                              /div[@class="core_reply j_lzl_wrapper"]/div[@class="core_reply_tail clearfix"]/div[@class="post-tail-wrap"]/span/a/text()''').extract()
+        #if topic_device:
+        #     topic['topic_device'] = topic_device
+        #
+        #
+        #topic_time = response.xpath('''/div[@id = "pb_content"]/div[@class = "left_section"]/div[@id = "j_p_postlist"]/div[@id = "l_post l_post_bright j_l_post clearfix  "]
+        #                                                /div[@class = "d_author"]/div[@class = "d_post_content_main  d_post_content_firstfloor"]/div[@class = "p_content  "]
+        #                                              /div[@class="core_reply j_lzl_wrapper"]/div[@class="core_reply_tail clearfix"]/div[@class="post-tail-wrap"]/span/text()''').extract()[2]
+        #if topic_time:
+        #     topic['topic_time'] = topic_time
+        #     
+        #yield topic
+        
+        posts = []
+        for sel in response.xpath('//div[@id = "pb_content"]/div[@class = "left_section"]/div[@id = "j_p_postlist"]/div[@id = "l_post l_post_bright j_l_post clearfix  "]'):
+            link = sel.xpath('div[@class = "d_author"]/ul[@class = "p_author"]/li[@class = "d_name"]/a/@href').extract()
+            if link:
+                user_page = baseurl + link[0]
+                request = scrapy.Request(user_page,callback=self.parse_user)            
+            post = PostItem()
+            #获取楼层用户信息
+            user_name = sel.xpath('div[@class = "d_author"]/ul[@class = "p_author"]/li[@class = "d_name"]/a/text()').extract()
+            user_lever = sel.xpath('div[@class = "d_author"]/ul[@class = "p_author"]/li[@class = "l_badge"]/div[@class = "p_badge"]/a/div[@class = "d_badge_title "]/text()').extract()
+            #获取帖子各楼层内容，其它楼层/div[@class = "d_author"]/div[@class = "d_post_content_main "]
+            post_content = sel.xpath('div[@class = "p_content  "]/cc/div[@class="d_post_content j_d_post_content "]').extract()
+            if post_content:
+                post['post_content'] = post_content
+            post_device = sel.xpath('''div[@class = "d_author"]/div[@class = "d_post_content_main "]/div[@class = "p_content  "]
+                                            /div[@class="core_reply j_lzl_wrapper"]/div[@class="core_reply_tail clearfix"]/div[@class="post-tail-wrap"]/span/a/text()''').extract()
+            if post_device:
+                post['post_device'] = post_device
+            wrap = sel.xpath('''div[@class = "d_author"]/div[@class = "d_post_content_main "]/div[@class = "p_content  "]
+                                            /div[@class="core_reply j_lzl_wrapper"]/div[@class="core_reply_tail clearfix"]/div[@class="post-tail-wrap"]/span/text()''').extract()
+            if warp:
+                post['post_floor'] = wrap[1]
+                post['post_time'] = warp[2]
+            post_follow = sel.xpath('''div[@class = "d_author"]/div[@class = "d_post_content_main "]/div[@class = "p_content  "]
+                                            /div[@class="core_reply j_lzl_wrapper"]/div[@class="core_reply_tail clearfix"]/div[@class="j_lzl_r p_reply"]/a/text()''').extract()
+            if post_follow:
+                post['post_follow'] = post_follow
+            post['topic_id'] = topic_id
+            #获取楼层下的回复,暂时没考虑分页
+            replies = sel.xpath('''div[@class = "d_author"]/div[@class = "d_post_content_main "]/div[@class = "p_content  "]
+                                            /div[@class="core_reply j_lzl_wrapper"]/div[@class="j_lzl_container core_reply_wrapper"]/div[@class="j_lzl_c_b_a core_reply_content"]
+                                            /ul[@class="j_lzl_m_w"]/li[@class="lzl_single_post j_lzl_s_p first_no_border"]''')
+            #楼层下的回复也暂时不考虑
+            #if replies:                                
+            #    for reply in replies:
+            #        reply_name = reply.xpath('div[@class = "lzl_cnt"]/a[@class="at j_user_card "]/text()').extract()
+            #        reply_content = reply.xpath('div[@class = "lzl_cnt"]/span[@class="lzl_content_main"]/text()').extract()
+
+            #抓取时间
+            post['record_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            
+            #log.msg("*****gamedesc is: %s" % item['gamedesc'], level=log.INFO)
+            #log.msg(item, level=log.INFO)
+            
+            posts.append(post)
+        
+        return posts
+            
+    def parse_user(self, response):
+    
+        #log.msg("*****liveBlock is: %s" % response.xpath('//div[@class = "liveBlock"]/div[@class = "zb_left  "]/div[@class = "zb_nav"]/text()'), level=log.INFO)
+        user = UserItem()
+        user_name = response.xpath('/div[@class = "userinfo_middle"]/div[@class = "userinfo_title"]/span[@class = "userinfo_username "]/text()').extract()
+        if user_name:
+            user['user_name'] = user_name
+            
+        userinfo = response.xpath('/div[@class = "userinfo_middle"]/div[@class = "userinfo_num"]/div[@class = "userinfo_userdata"]/span').extract()
+        if userinfo:
+            user['user_age'] = userinfo[1]
+            user['user_post'] = userinfo[3]
+        
+        fork_fans = response.xpath('/div[@class = "right_aside"]/div[@class = "ihome_aside_section"]/h1[@class = "ihome_aside_title"]/h1[@class = "ihome_aside_title"]/span[@class = "concern_num"]/a').extract()
+        if userinfo:
+            user['user_fork'] = fork_fans[0]
+            user['user_fans'] = fork_fans[1]
+        
+        
+        return user
